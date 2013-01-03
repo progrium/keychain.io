@@ -3,4 +3,4 @@ import os
 from keychain.app import app
 
 if __name__ == "__main__":
-    app.run(port=int(os.environ.get("PORT", 5000)))
+    app.run('0.0.0.0', int(os.environ.get("PORT", 5000)))
