@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 setup(
-    name='KeychainIO',
+    name='KeychainApp',
     version='0.0.1',
     author='Jeff Lindsay',
     author_email='progrium@gmail.com',

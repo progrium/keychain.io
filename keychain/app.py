@@ -2,6 +2,12 @@ import collections
 import base64
 import uuid
 import hashlib
+import os
+
+import eventlet
+import requests
+import boto
+import boto.s3.key
 
 from flask import Flask
 from flask import request
@@ -11,19 +17,34 @@ from flask import render_template
 app = Flask('keychain')
 app.config['DEBUG'] = True
 
-keys = collections.defaultdict(dict)
+action_expiry = 3600
 pending_actions = {}
+
+s3 = None
+
+def s3key(email, name):
+    global s3
+    if not s3:
+        s3 = boto.connect_s3()
+    k = boto.s3.key.Key(s3.lookup('keychain.io'))
+    k.key = '{}.{}'.format(email, name)
+    return k
 
 def lookup_key(email, name=None):
     name = name or 'default'
-    if email in keys and name in keys[email]:
-        return keys[email][name]
+    k = s3key(email, name)
+    try:
+        return k.get_contents_as_string()
+    except:
+        return None
 
 def upload_key(email, name, key):
-    keys[email][name] = key.strip()
+    k = s3key(email, name)
+    k.set_contents_from_string(key.strip())
 
 def delete_key(email, name):
-    del keys[email][name]
+    k = s3key(email, name)
+    k.delete()
 
 def fingerprint(keystring):
     key = base64.b64decode(keystring.split(' ')[1])
@@ -43,11 +64,22 @@ def confirm_key_delete(email, keyname):
     send_confirmation('delete', token, email)
 
 def schedule_action_expiration(token):
-    pass
+    eventlet.spawn_after(action_expiry, lambda: pending_actions.pop(token, None))
 
 def send_confirmation(action, token, email):
-    print("Email to {} for {}: {}{}/confirm/{}".format(
-        email, action, request.url_root, email, token))
+    if 'SENDGRID_USERNAME' in os.environ:
+        requests.post("https://sendgrid.com/api/mail.send.json",
+            data={
+                'api_user':os.environ.get('SENDGRID_USERNAME'),
+                'api_key':os.environ.get('SENDGRID_PASSWORD'),
+                'to':email,
+                'subject':"Keychain.io {} Confirmation".format(action.capitalize()),
+                'from':"robot@keychain.io",
+                'text':"Click this link to confirm {}:\n{}{}/confirm/{}".format(
+                    action, request.url_root, email, token)})
+    else:
+        print("Email to {} for {}: {}{}/confirm/{}".format(
+            email, action, request.url_root, email, token))
 
 @app.route('/')
 def index():

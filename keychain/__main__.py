@@ -1,6 +1,11 @@
 import os
 
+from eventlet import wsgi
+import eventlet
+
 from keychain.app import app
 
 if __name__ == "__main__":
-    app.run('0.0.0.0', int(os.environ.get("PORT", 5000)))
+  eventlet.monkey_patch()
+  wsgi.server(eventlet.listen(
+      ('', int(os.environ.get("PORT", 5000)))), app)
