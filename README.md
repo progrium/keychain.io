@@ -4,6 +4,16 @@ TODO
 * confirmation emails
 * readme
 
+Bash
+----
+Upload your default SSH key:
+
+    curl -s ssh.keychain.io/<email>/upload | bash
+
+Install your key into authorized_keys:
+
+    curl -s ssh.keychain.io/<email>/install | bash
+
 URLS
 ----
     ssh.keychain.io/<email>
