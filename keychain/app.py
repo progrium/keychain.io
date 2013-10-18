@@ -17,6 +17,7 @@ from flask import render_template
 app = Flask('keychain')
 app.config['DEBUG'] = True
 
+bucket_name = 'keychain.io'
 action_expiry = 3600
 pending_actions = {}
 
@@ -26,9 +27,16 @@ def s3key(email, name):
     global s3
     if not s3:
         s3 = boto.connect_s3()
-    k = boto.s3.key.Key(s3.lookup('keychain.io'))
+    k = boto.s3.key.Key(s3.lookup(bucket_name))
     k.key = '{}.{}'.format(email, name)
     return k
+
+def s3keys(email):
+    global s3
+    if not s3:
+        s3 = boto.connect_s3()
+    b = s3.get_bucket(bucket_name)
+    return b.list(prefix=email)
 
 def lookup_key(email, name=None):
     name = name or 'default'
@@ -36,6 +44,13 @@ def lookup_key(email, name=None):
     try:
         return k.get_contents_as_string()
     except:
+        return None
+
+def lookup_keys(email):
+    keys = s3keys(email)
+    try:
+        return [k.get_contents_as_string() for k in keys]
+    except Exception, e:
         return None
 
 def upload_key(email, name, key):
@@ -112,12 +127,12 @@ def default_fingerprint(email):
 
 @app.route('/<email>/all')
 def all_keys(email):
-    keys_ = [lookup_key(email, key) for key in keys[email]]
+    keys_ = lookup_keys(email)
     return "{0}\n".format('\n'.join(keys_))
 
 @app.route('/<email>/all/install')
 def all_install(email):
-    keys_ = [lookup_key(email, key) for key in keys[email]]
+    keys_ = lookup_keys(email)
     return render_template('install.sh', keys=keys_)
 
 @app.route('/<email>/<keyname>', methods=['GET', 'PUT', 'DELETE'])
