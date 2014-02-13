@@ -17,7 +17,7 @@ from flask import render_template
 app = Flask('keychain')
 app.config['DEBUG'] = True
 
-bucket_name = 'keychain.io'
+bucket_name = os.environ.get('KEYCHAIN_BUCKET_NAME')
 action_expiry = 3600
 pending_actions = {}
 
