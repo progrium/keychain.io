@@ -40,8 +40,12 @@ Create a .env file, so that foreman will populate the appropriate environment va
     AWS_SECRET_ACCESS_KEY=abcd1234
     SENDGRID_USERNAME=ryan
     SENDGRID_PASSWORD=password
-    BUCKET_NAME=keychain.io
+    KEYCHAIN_BUCKET_NAME=keychain.io
 
+For heroku you have to set all these environments via:
+    
+    xargs -a .env heroku config:set
+    
 Finally, start the application
 
     foreman start
