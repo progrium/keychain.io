@@ -30,7 +30,7 @@ You will need to create a new S3 bucket
 
 Either clone this repository or fork and clone, then install dependencies
 
-    git clone git@github.com:RyanBalfanz/keychain.io.git
+    git clone git@github.com:progrium/keychain.io.git
     pip install -r requirements.txt
 
 Create a .env file, so that foreman will populate the appropriate environment variables when you start the server with `foreman start`
