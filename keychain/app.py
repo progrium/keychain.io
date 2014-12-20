@@ -1,4 +1,3 @@
-import collections
 import base64
 import uuid
 import hashlib
@@ -8,6 +7,7 @@ import eventlet
 import requests
 import boto
 import boto.s3.key
+from boto.s3.connection import OrdinaryCallingFormat, Location
 
 from flask import Flask
 from flask import request
@@ -18,6 +18,7 @@ app = Flask('keychain')
 app.config['DEBUG'] = True
 
 bucket_name = os.environ.get('KEYCHAIN_BUCKET_NAME')
+bucket_location = os.environ.get('KEYCHAIN_BUCKET_LOCATION', Location.DEFAULT)
 action_expiry = 3600
 pending_actions = {}
 
@@ -26,16 +27,17 @@ s3 = None
 def s3key(email, name):
     global s3
     if not s3:
-        s3 = boto.connect_s3()
-    k = boto.s3.key.Key(s3.lookup(bucket_name))
+        s3 = boto.connect_s3(calling_format=OrdinaryCallingFormat())
+    k = boto.s3.key.Key(
+        s3.create_bucket(bucket_name, location=bucket_location))
     k.key = '{}.{}'.format(email, name)
     return k
 
 def s3keys(email):
     global s3
     if not s3:
-        s3 = boto.connect_s3()
-    b = s3.get_bucket(bucket_name)
+        s3 = boto.connect_s3(calling_format=OrdinaryCallingFormat())
+    b = s3.create_bucket(bucket_name, location=bucket_location)
     return b.list(prefix=email)
 
 def lookup_key(email, name=None):
@@ -181,5 +183,3 @@ def named_key_action(email, keyname, action):
             return render_template('install.sh', keys=[key])
         else:
             return 'echo "No key to install."'
-
-
