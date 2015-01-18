@@ -23,6 +23,7 @@ pending_actions = {}
 
 s3 = None
 
+
 def s3key(email, name):
     global s3
     if not s3:
@@ -32,12 +33,14 @@ def s3key(email, name):
     k.key = '{}.{}'.format(email, name)
     return k
 
+
 def s3keys(email):
     global s3
     if not s3:
         s3 = boto.connect_s3(calling_format=OrdinaryCallingFormat())
     b = s3.get_bucket(bucket_name)
     return b.list(prefix=email)
+
 
 def lookup_key(email, name=None):
     name = name or 'default'
@@ -47,25 +50,30 @@ def lookup_key(email, name=None):
     except:
         return None
 
+
 def lookup_keys(email):
     keys = s3keys(email)
     try:
         return [k.get_contents_as_string() for k in keys]
-    except Exception, e:
+    except Exception:
         return None
+
 
 def upload_key(email, name, key):
     k = s3key(email, name)
     k.set_contents_from_string(key.strip())
 
+
 def delete_key(email, name):
     k = s3key(email, name)
     k.delete()
 
+
 def fingerprint(keystring):
     key = base64.b64decode(keystring.split(' ')[1])
     fp = hashlib.md5(key).hexdigest()
-    return ':'.join(a+b for a,b in zip(fp[::2], fp[1::2]))
+    return ':'.join(a+b for a, b in zip(fp[::2], fp[1::2]))
+
 
 def confirm_key_upload(email, keyname, key):
     token = str(uuid.uuid4())
@@ -73,33 +81,42 @@ def confirm_key_upload(email, keyname, key):
     schedule_action_expiration(token)
     send_confirmation('upload', token, email)
 
+
 def confirm_key_delete(email, keyname):
     token = str(uuid.uuid4())
     pending_actions[token] = (delete_key, (email, keyname))
     schedule_action_expiration(token)
     send_confirmation('delete', token, email)
 
+
 def schedule_action_expiration(token):
-    eventlet.spawn_after(action_expiry, lambda: pending_actions.pop(token, None))
+    eventlet.spawn_after(action_expiry, lambda: pending_actions.pop(
+        token, None))
+
 
 def send_confirmation(action, token, email):
     if 'SENDGRID_USERNAME' in os.environ:
-        requests.post("https://sendgrid.com/api/mail.send.json",
+        requests.post(
+            "https://sendgrid.com/api/mail.send.json",
             data={
-                'api_user':os.environ.get('SENDGRID_USERNAME'),
-                'api_key':os.environ.get('SENDGRID_PASSWORD'),
-                'to':email,
-                'subject':"Keychain.io {} Confirmation".format(action.capitalize()),
-                'from':"robot@keychain.io",
-                'text':"Click this link to confirm {}:\n{}{}/confirm/{}".format(
-                    action, request.url_root, email, token)})
+                'api_user': os.environ.get('SENDGRID_USERNAME'),
+                'api_key': os.environ.get('SENDGRID_PASSWORD'),
+                'to': email,
+                'subject': "Keychain.io {} Confirmation".format(
+                    action.capitalize()),
+                'from': "robot@keychain.io",
+                'text': "Click this link to confirm {}:\n{}{}/confirm/{}"
+                .format(action, request.url_root, email, token)
+            })
     else:
         print("Email to {} for {}: {}{}/confirm/{}".format(
             email, action, request.url_root, email, token))
 
+
 @app.route('/')
 def index():
     return redirect("http://github.com/progrium/keychain.io")
+
 
 @app.route('/<email>/confirm/<token>')
 def confirm_action(email, token):
@@ -110,31 +127,38 @@ def confirm_action(email, token):
         action[0](*action[1])
         return "Action completed\n"
 
+
 @app.route('/<email>', methods=['GET', 'PUT', 'DELETE'])
 def default_key(email):
     return named_key(email, 'default')
+
 
 @app.route('/<email>/upload')
 def default_upload(email):
     return named_key_action(email, 'default', 'upload')
 
+
 @app.route('/<email>/install')
 def default_install(email):
     return named_key_action(email, 'default', 'install')
 
+
 @app.route('/<email>/fingerprint')
 def default_fingerprint(email):
     return named_key_action(email, 'default', 'fingerprint')
+
 
 @app.route('/<email>/all')
 def all_keys(email):
     keys_ = lookup_keys(email)
     return "{0}\n".format('\n'.join(keys_))
 
+
 @app.route('/<email>/all/install')
 def all_install(email):
     keys_ = lookup_keys(email)
     return render_template('install.sh', keys=keys_)
+
 
 @app.route('/<email>/<keyname>', methods=['GET', 'PUT', 'DELETE'])
 def named_key(email, keyname):
@@ -161,6 +185,7 @@ def named_key(email, keyname):
         else:
             return "Key not found\n", 404
 
+
 @app.route('/<email>/<keyname>/<action>')
 def named_key_action(email, keyname, action):
     if action == 'fingerprint':
@@ -173,8 +198,9 @@ def named_key_action(email, keyname, action):
     elif action == 'upload':
         keypath = request.args.get('keypath', '')
         url_root = request.url_root
-        return render_template('upload.sh', email=email,
-                keyname=keyname, keypath=keypath, url_root=url_root)
+        return render_template(
+            'upload.sh', email=email,
+            keyname=keyname, keypath=keypath, url_root=url_root)
 
     elif action == 'install':
         key = lookup_key(email, keyname)
